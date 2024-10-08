@@ -22,7 +22,7 @@ int main()
 	p[0] = 'H', p[1] = 'i', p[2] = '\0'; // Como se modifica lo que esta
 	// en la direccion de memoria a la que apunta p, se modifica tambien msg2
 	printf("msg: %s, p: %s, msg2: %s\n", msg, p, msg2);
-	printf("msg len: %lu p len %lu msg2 len %lu\n", strlen(msg), strlen(p), strlen(msg2));
+	printf("msg len: %lu p len %lu msg2 len %lu\n", strlen(msg), strlen(p), strlen(msg2)); //strlen-> numero de chars que tiene la cadena
 	printf("msg size: %lu p size %lu msg2 size %lu\n", sizeof(msg), sizeof(p), sizeof(msg2));
 
 	msg[0] = 'B', msg[1] = 'y';
