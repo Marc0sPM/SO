@@ -1,8 +1,11 @@
 #include <stdio.h>
-#include <unistd.h> 
 #include <stdlib.h> 
 #include <string.h>
+#include <unistd.h> 
 #include "defs.h"
+
+
+
 
 
 char * progname;
@@ -53,11 +56,20 @@ int main(int argc, char *argv[])
 	options.title = NULL;
 
 	/* Parse command-line options */
-	while((opt = getopt(argc, argv, "h")) != -1) {
+
+	// optarg --> argumento en el que esta getopt
+	// optind --> indice del argumento en el que esta
+	while((opt = getopt(argc, argv, "hel:")) != -1) {
 		switch(opt) {
 		case 'h':
 			usage();
 			exit(0);
+		case 'e':
+			options.par_mode = EVEN;
+			break;
+		case 'l':  
+			options.lenght = atoi(optarg);
+			break;
 		default:
 			exit(EXIT_FAILURE);
 		}
@@ -71,7 +83,7 @@ int main(int argc, char *argv[])
 	}
 	
 	/* Fill options.title with the corresponding element of argv */
-	// options.title = argv[xxxx];
+	options.title = argv[optind];
 
     /* Call display_numbers */
 	display_numbers (options.lenght, options.par_mode, options.title);
