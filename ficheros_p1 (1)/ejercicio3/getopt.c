@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'l':  
 			options.lenght = atoi(optarg);
-			break;
+			break; 
 		default:
 			exit(EXIT_FAILURE);
 		}
