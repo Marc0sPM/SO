@@ -27,7 +27,7 @@ static inline char* clone_string(char* original)
  * @param nr_entries
  * @return array of entries (passwd_entry_t*) and entry count (nr_entries parameter)
  */
-passwd_entry_t* parse_passwd(struct options* options, int* nr_entries)
+passwd_entry_t* parse_passwd(const char* filename, struct options* options, int* nr_entries)
 {
 	FILE* passwd;
 	char line[MAX_PASSWD_LINE+1];
@@ -41,8 +41,8 @@ passwd_entry_t* parse_passwd(struct options* options, int* nr_entries)
 	int entry_count=0;
 	int cur_line;
 
-	if ((passwd=fopen("/etc/passwd","r"))==NULL) {
-		fprintf(stderr, "/etc/passwd could not be opened: ");
+	if ((passwd=fopen(filename,"r"))==NULL) {
+		fprintf(stderr, "%s could not be opened: ", filename);
 		perror(NULL);
 		return NULL;
 	}
@@ -84,7 +84,7 @@ passwd_entry_t* parse_passwd(struct options* options, int* nr_entries)
 				strcpy(cur_entry->login_name,token);
 				break;
 			case ENCRYPTED_PASS_IDX:
-				cur_entry->optional_encrypted_passwd=clone_string(token);
+				cur_entry->optional_encrypted_passwd=strdup(token);
 				break;
 			case UID_IDX:
 				if (sscanf(token,"%d",&cur_entry->uid)!=1) {
@@ -100,15 +100,15 @@ passwd_entry_t* parse_passwd(struct options* options, int* nr_entries)
 				}
 				break;
 			case USER_NAME_IDX:
-				cur_entry->user_name=clone_string(token);
+				cur_entry->user_name=strdup(token);
 				break;
 			case USER_HOME_IDX:
-				cur_entry->user_home=clone_string(token);
+				cur_entry->user_home=strdup(token);
 				break;
 			case USER_SHELL_IDX:
 				/* remove new line from token */
 				token[strlen(token)-1]='\0';
-				cur_entry->user_shell=clone_string(token);
+				cur_entry->user_shell=strdup(token);
 				break;
 			default:
 				break;
@@ -157,11 +157,11 @@ static void free_entries(passwd_entry_t* entries, int nr_entries)
  * @param options 
  * @return int 
  */
-static int show_passwd(struct options* options)
+static int show_passwd(char* inputfile, struct options* options)
 {
 	int nr_entries;
 	int i;
-	passwd_entry_t* entries=parse_passwd(options,&nr_entries);
+	passwd_entry_t* entries=parse_passwd(inputfile, options,&nr_entries);
 
 	if (!entries)
 		return EXIT_FAILURE;
@@ -194,16 +194,17 @@ int main(int argc, char *argv[])
 {
 	int retCode, opt;
 	struct options options;
+	options.input_file = "/etc/passwd"; // Default passwd
 
 	/* Initialize default values for options */
 	options.outfile=stdout;
 	options.output_mode=VERBOSE_MODE;
 
 	/* Parse command-line options */
-	while((opt = getopt(argc, argv, "hvpo:")) != -1) {
+	while((opt = getopt(argc, argv, "hvpo:i:c")) != -1) {
 		switch(opt) {
 		case 'h':
-			fprintf(stderr,"Usage: %s [ -h | -v | -p | -o <output_file> ]\n",argv[0]);
+			fprintf(stderr,"Usage: %s [ -h | -v | -p | -o <output_file> | -i <input_file> | -c ]\n",argv[0]);
 			exit(0);
 		case 'v':
 			options.output_mode=VERBOSE_MODE;
@@ -219,11 +220,15 @@ int main(int argc, char *argv[])
 				exit(EXIT_FAILURE);
 			}
 			break;
+		case 'i':
+			options.input_file = optarg;
+
+			break;
 		default:
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	retCode=show_passwd(&options);
+	retCode=show_passwd(options.input_file, &options);
 	exit(retCode);
 }

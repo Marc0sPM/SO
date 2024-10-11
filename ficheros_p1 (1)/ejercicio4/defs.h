@@ -48,6 +48,7 @@ typedef enum {
 struct options {
 	FILE* outfile;
 	output_mode_t output_mode;
+	char* input_file;
 };
 
 #endif
