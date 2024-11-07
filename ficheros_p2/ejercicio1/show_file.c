@@ -2,29 +2,22 @@
 #include <stdlib.h>
 #include <err.h>
 
+
 /**
- * Es necesario definir un buffer con un tamaño determinado para ejecutar el fread()
- * Tambien usar size_t para no limitar el espacio que se necesita
+ * @param buffer array donde se van a almacenar los datos leidos de forma temporal
+ * @param num numero de bytes que se quiere leer cada iteracion
+ * @param size tamaño del buffer 
+ * @param stream file de la que se lee
+ * fread(buffer, num, size, stream)
  * 
- * La condicion para el while de lectura es que los bytes que se acaban de leer sean mayores que 0
- * sino, eso significa que ya no se puede leer nada mas.
- * 
- * 
- * @param size tamaño de cada unidad que se lee (bytes)
- * size_t fread(void *ptr, size_t size, size_t count, FILE *stream); 
- * 
- * 
- * size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream);
+ * fwrite funciona igual pero asegurarse que el tamaño del buffer en la funcion sea la de los bytes de lectura
  */
-
-
-//Tamaño del buffer para la lectura
-#define BUFFER_SIZE  1024
+#define BUFFER_SIZE 1024 // Tamaño de buffer para lectura de bytes
 
 int main(int argc, char* argv[]) {
 	FILE* file=NULL;
-	size_t bytesRead, bytesWritten;
-	unsigned char buffer[BUFFER_SIZE];
+	size_t readBytes, writeBytes;
+	size_t buffer [BUFFER_SIZE];
 
 	if (argc!=2) {
 		fprintf(stderr,"Usage: %s <file_name>\n",argv[0]);
@@ -36,13 +29,13 @@ int main(int argc, char* argv[]) {
 		err(2,"The input file %s could not be opened",argv[1]);
 
 	/* Read file byte by byte */
-	while ((bytesRead = fread(buffer, 1, BUFFER_SIZE, file)) > 0) {
+	while ((readBytes = fread(buffer, 1, BUFFER_SIZE, file)) > 0 ) {
 		/* Print byte to stdout */
-		bytesWritten = fwrite(buffer, 1, bytesRead, stdout);
+		writeBytes = fwrite(buffer, 1, readBytes,  stdout);
 
-		if (bytesWritten != bytesRead){
+		if (readBytes != writeBytes){
 			fclose(file);
-			err(3,"fwrite()) failed!!");
+			err(3,"putc() failed!!");
 		}
 	}
 
