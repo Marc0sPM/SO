@@ -35,6 +35,7 @@ int print_text_file(char *path)
 
 int print_binary_file(char *path)
 {
+
 	/* To be completed  (part B) */
 	return 0;
 }
@@ -42,7 +43,17 @@ int print_binary_file(char *path)
 
 int write_binary_file(char *input_file, char *output_file)
 {
-	/* To be completed  (part C) */
+	FILE* input = NULL;
+	FILE* output = NULL;
+	input = fopen(input_file, "r");
+	output = fopen(output_file, "w");
+	
+	int num;
+
+	fscanf(input, "%d", &num);
+	student_t student;
+
+	fwrite(&num, sizeof(int), 1, output);
 	return 0;
 }
 
@@ -58,12 +69,12 @@ int main(int argc, char *argv[])
 	ret_code = 0;
 
 	/* Parse command-line options (incomplete code!) */
-	while ((opt = getopt(argc, argv, "hi:p")) != -1)
+	while ((opt = getopt(argc, argv, "hi:o:p")) != -1)
 	{
 		switch (opt)
 		{
 		case 'h':
-			fprintf(stderr, "Usage: %s [ -h | -i<input-file> | -p]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [ -h | -i <input_file> | -o <output_file>|-p]\n", argv[0]);
 			exit(EXIT_SUCCESS);
 		case 'i':
 			options.input_file = optarg;
@@ -71,9 +82,10 @@ int main(int argc, char *argv[])
 		case 'p':
 			options.action = PRINT_TEXT_ACT;
 			break;
-		/**
-		 **  To be completed ...
-		 **/
+		case 'o':
+			options.output_file = optarg;
+			options.action = WRITE_BINARY_ACT;
+			break;
 
 		default:
 			exit(EXIT_FAILURE);
