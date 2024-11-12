@@ -61,6 +61,10 @@ int get_size_dir(char *dname, size_t *blocks)
             closedir(dir);
             return -1;
         }
+
+		//Sumamos lo que ocupa el archivo / directorio 
+		*blocks += st.st_blocks;
+
 		// Si es un subdirectorio calculamos el espacio 
         if (S_ISDIR(st.st_mode)) {
             // Llamada recursiva para el subdirectorio
@@ -69,7 +73,6 @@ int get_size_dir(char *dname, size_t *blocks)
                 return -1;
 			}
 		}
-		*blocks += st.st_blocks;
     }
 
     closedir(dir);
