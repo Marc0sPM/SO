@@ -17,6 +17,8 @@ int main() {
         printf("Soy el proceso hijo, me voy a detener...\n");
         pause(); // El hijo se queda detenido aquí hasta recibir una señal
         printf("El hijo continúa después de ser reanudado\n"); // Esto no se ejecuta hasta que se reciba SIGCONT
+        exit(0);
+        
         return 0; // El hijo finaliza normalmente
     } else {
         // Este bloque es ejecutado por el proceso padre

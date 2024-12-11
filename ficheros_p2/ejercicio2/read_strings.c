@@ -43,6 +43,8 @@ int main(int argc, char *argv[])
 		fseek(file,-1,SEEK_CUR);
 		char* word = loadstr(file);
 		printf("%s\n",word);
+		free(word);
+		
 	}
 	/* To be completed */
 	fclose(file);
