@@ -16,7 +16,8 @@ int main(void)
     write(fd1, "00000", 5);
     for (i=1; i < 10; i++) {
         pos = lseek(fd1, 0, SEEK_CUR);
-        if (fork() == 0) {
+        pid_t pid = fork(); 
+        if (pid == 0) {
             /* Child */
             sprintf(buffer, "%d", i*11111);
             lseek(fd1, pos, SEEK_SET);
@@ -25,6 +26,12 @@ int main(void)
             exit(0);
         } else {
             /* Parent */
+            // SOLUCION A, esperar a cada hijo para que escriba los 5 numeros correspondientes 
+            waitpid(pid, NULL, 0);
+            //SOLUCION B: despues de que cada hijo termine, escribir los 0s
+            if(i< 9)
+                write(fd1, "00000", 5);
+
             lseek(fd1, 5, SEEK_CUR);
         }
     }
