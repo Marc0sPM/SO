@@ -3,32 +3,46 @@
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <bits/getopt_posix.h>
+#include <sys/wait.h> // Para waitpid
+#include <unistd.h>   // Para fork, execvp
+#include <getopt.h>
 
-pid_t launch_command(char** argv){
-    /* To be completed */
+#define MAX_CHILDREN 100 // Numero maximo de procesos hijos que puede ejecutar el programa
+
+typedef struct{
+    pid_t pid; 
+    int cmd_number;
+
+} ChildProcess;
+
+
+pid_t launch_command(char** argv, int cmd_number) {
+    printf("@@ Running command #%d:", cmd_number);
+    for (int i = 0; argv[i] != NULL; i++) {
+        printf(" %s", argv[i]);
+    }
+    printf("\n");
+
     pid_t pid = fork();
 
-    if(pid == 0) { // hijo 
+    if (pid == 0) { // Proceso hijo
         execvp(argv[0], argv);
-        perror("execvp failed ! ");
+        perror("execvp failed!");
         exit(EXIT_FAILURE);
     }
-    if(pid > 0) {    // proceso padre
-        int status;
-        waitpid(pid,&status, 0);// esperamos a que el proceso hijo termine 
-        return pid; 
-
+    if (pid > 0) { // Proceso padre
+        // En caso normal esperar al hijo desde aqui
+        return pid;
     }
-    return -1; // si el fork falla 
+
+    perror("Fork failed");
+    return -1; // Si fork falla
 }
 
-
 char **parse_command(const char *cmd, int* argc) {
-    // Allocate space for the argv array (initially with space for 10 args)
     size_t argv_size = 10;
     const char *end;
-    size_t arg_len; 
+    size_t arg_len;
     int arg_count = 0;
     const char *start = cmd;
     char **argv = malloc(argv_size * sizeof(char *));
@@ -38,11 +52,10 @@ char **parse_command(const char *cmd, int* argc) {
         exit(EXIT_FAILURE);
     }
 
-    while (*start && isspace(*start)) start++; // Skip leading spaces
+    while (*start && isspace(*start)) start++; // Saltar espacios iniciales
 
     while (*start) {
-        // Reallocate more space if needed
-        if (arg_count >= argv_size - 1) {  // Reserve space for the NULL at the end
+        if (arg_count >= argv_size - 1) {
             argv_size *= 2;
             argv = realloc(argv, argv_size * sizeof(char *));
             if (argv == NULL) {
@@ -51,11 +64,9 @@ char **parse_command(const char *cmd, int* argc) {
             }
         }
 
-        // Find the start of the next argument
         end = start;
         while (*end && !isspace(*end)) end++;
 
-        // Allocate space and copy the argument
         arg_len = end - start;
         argv[arg_count] = malloc(arg_len + 1);
 
@@ -64,81 +75,109 @@ char **parse_command(const char *cmd, int* argc) {
             exit(EXIT_FAILURE);
         }
         strncpy(argv[arg_count], start, arg_len);
-        argv[arg_count][arg_len] = '\0';  // Null-terminate the argument
+        argv[arg_count][arg_len] = '\0'; // Null-terminate
         arg_count++;
 
-        // Move to the next argument, skipping spaces
         start = end;
         while (*start && isspace(*start)) start++;
     }
 
-    argv[arg_count] = NULL; // Null-terminate the array
-
-    (*argc)=arg_count; // Return argc
-
+    argv[arg_count] = NULL; // Null-terminate el array
+    *argc = arg_count;
     return argv;
 }
 
-
 int main(int argc, char *argv[]) {
-    char **cmd_argv;
-    int cmd_argc, opt;
-    int i;
+    int opt;
+    ChildProcess children [MAX_CHILDREN];
+    int bach = 0;
+    int num_children = 0;
 
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s \"command\"\n", argv[0]);
-        return EXIT_FAILURE;
+            fprintf(stderr, "Usage: %s -x \"command\" OR %s -s \"file\"\n", argv[0], argv[0]);
+            return EXIT_FAILURE;
     }
-    cmd_argv=parse_command(argv[2], &cmd_argc);
 
-    while((opt = getopt(argc, argv, "x:s:")) != -1) {
-        switch(opt) {
-            case 'x':
+    while ((opt = getopt(argc, argv, "x:s:b")) != -1) {
+        switch (opt) {
+            case 'x': {
+                int cmd_argc;
+                char **cmd_argv = parse_command(optarg, &cmd_argc);
+                launch_command(cmd_argv, 0);
 
-                launch_command(cmd_argv);
-
-                break;
-            case 's':
-                FILE* file = fopen(optarg , "r");
-                if(file == NULL) {
-                    perror("ERROR al abrir file");
-                    exit(EXIT_FAILURE);
-                }
-                char buff [1024];
-                while(fgets(buff, sizeof(buff), file) != NULL) {
-                    size_t len = strlen(buff);
-                    if(len > 0 && buff[len - 1] == '\n') {
-                        buff[len - 1] = '\0';
-                    }
-
-                    cmd_argv=parse_command(buff, &cmd_argc);
-
-                    if(cmd_argv[0] != NULL) {
-                        launch_command(cmd_argv);
-                    }
-                }
-
-                for(int i = 0; cmd_argv[i] != NULL; i++) {
+                for (int i = 0; cmd_argv[i] != NULL; i++) {
                     free(cmd_argv[i]);
                 }
-                free(cmd_argv); 
-                fclose(file);
-                // for(commands in fichero  [con fgets() ]) -> launch_command
+                free(cmd_argv);
                 break;
+            }
+            case 's': {
+                FILE *file = fopen(optarg, "r");
+                if (file == NULL) {
+                    perror("Error al abrir el archivo");
+                    return EXIT_FAILURE;
+                }
+
+                char buff[1024];
+                int cmd_number = 0;
+                while (fgets(buff, sizeof(buff), file) != NULL) {
+                    size_t len = strlen(buff);
+                    if (len > 0 && buff[len - 1] == '\n') {
+                        buff[len - 1] = '\0'; // Eliminar el salto de línea
+                    }
+
+                    int cmd_argc;
+                    char **cmd_argv = parse_command(buff, &cmd_argc);
+
+                    if (cmd_argv[0] != NULL) {
+                        // Vamos guardando los procesos hijos en nuestra lista children y llevando el contador de comandos cmd_number
+                        if(bach) {
+                            //Ejecutamos el comando pero sin esperar a que cada hijo termine
+                            pid_t pid = launch_command(cmd_argv, cmd_number);
+                            if(num_children < MAX_CHILDREN) {
+                                children[num_children].pid = pid;
+                                children[num_children].cmd_number = cmd_number;
+                                num_children ++; 
+                            }else{
+                                fprintf(stderr, "Numero de procesos hijos excede el limite");
+                                exit(EXIT_FAILURE);
+                            }
+                        }else {
+                            launch_command(cmd_argv, cmd_number);
+                        }
+                        
+                        cmd_number++;
+                    }
+
+                    for (int i = 0; cmd_argv[i] != NULL; i++) {
+                        free(cmd_argv[i]);
+                    }
+                    free(cmd_argv);
+                }
+
+                fclose(file);
+                break;
+            }
+            case 'b':
+                bach = 1;
+                break;
+            default:
+                fprintf(stderr, "Opción no válida\n");
+                return EXIT_FAILURE;
         }
-
-
     }
 
-
-    // Print parsed arguments
-    printf("argc: %d\n", cmd_argc);
-    for (i = 0; cmd_argv[i] != NULL; i++) {
-        printf("argv[%d]: %s\n", i, cmd_argv[i]);
-        free(cmd_argv[i]);  // Free individual argument
+    //Si tenemos que ejecutar todos los comandos en paralelo, simplemente le decimos al padre que espere a cada uno de los procesos hijos para terminar
+    if (bach) {
+        int status;
+        for (int i = 0; i < num_children; i++) {
+            pid_t pid = waitpid(children[i].pid, &status, 0);
+            if (pid > 0) {
+                printf("@@ Command #%d terminated (pid: %d, status: %d)\n",
+                       children[i].cmd_number, pid, WEXITSTATUS(status));
+            }
+        }
     }
-
-    free(cmd_argv);  // Free the cmd_argv array
 
     return EXIT_SUCCESS;
 }
