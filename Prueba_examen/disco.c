@@ -142,8 +142,11 @@
 
 		// el cliente numero 3 se queda en la cola porque cuando llega no hay cola
 		// si lo que se quiere es que no haya cola hacer waiting >= 0
-		while(waiting_normal > 0 || waiting_vip > 0) {
+		while(aforo >= CAPACITY) {
+			printf("[TRY] : client (%d) tried to enter disco.\n", info->id);
 			enter_bar(info->id);
+			sleep((rand() % 5) + 1 );
+
 		}
 
 		if(info->isVip) {
