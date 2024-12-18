@@ -21,6 +21,28 @@
 	int aforo_bar = 0;
 	int capacidad_bar = 0;
 
+	void drink(int id) {
+
+		printf("[BAR] : client (%d) is drinking.\n", id);
+		sleep(rand() % 5);
+	}
+
+	void exit_bar(int id) {
+		/*	Acceso al aforo de la discotca es seccion critica -> mutex 	*/
+
+		pthread_mutex_lock(&mtx);
+
+		aforo_bar--;
+		printf("[BAR] : client (%d) has exited\n", id);
+
+		// Si hay vips esperando se manda la señal vip_cond
+		if(waiting_bar > 0) {
+			pthread_cond_signal(&bar_cond);
+		}
+		pthread_mutex_unlock(&mtx);
+	}
+
+
 	void enter_bar(int id) {
 		pthread_mutex_lock(&mtx);
 
@@ -41,27 +63,7 @@
 		exit_bar(id);
 	}
 
-	void drink(int id) {
-
-		printf("[BAR] : client (%d) is drinking.\n", id);
-		sleep(rand() % 5);
-	}
-
-	void exit_bar(id) {
-		/*	Acceso al aforo de la discotca es seccion critica -> mutex 	*/
-
-		pthread_mutex_lock(&mtx);
-
-		aforo_bar--;
-		printf("[BAR] : client (%d) has exited\n", id);
-
-		// Si hay vips esperando se manda la señal vip_cond
-		if(waiting_bar > 0) {
-			pthread_cond_signal(&bar_cond);
-		}
-		pthread_mutex_unlock(&mtx);
-	}
-
+	
 	void enter_normal_client(int id)
 	{
 
@@ -137,7 +139,10 @@
 	{
 		client_info* info = (client_info* )arg;
 
-		if(waiting_normal > 0 || waiting_vip > 0) {
+
+		// el cliente numero 3 se queda en la cola porque cuando llega no hay cola
+		// si lo que se quiere es que no haya cola hacer waiting >= 0
+		while(waiting_normal > 0 || waiting_vip > 0) {
 			enter_bar(info->id);
 		}
 
