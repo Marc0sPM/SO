@@ -7,80 +7,81 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#define M 10
-#define SHM_NAME "/CALDERO"
-#define SEM_EMPTY "/EMPTY"
-#define SEM_FULL "/FULL"
-#define SEM_MUTEX "/MUTEX"
+#define M 10 // Cantidad de raciones que el cocinero pone en el caldero
+#define SHM_NAME "/CALDERO" // Nombre del segmento de memoria compartida
+#define SEM_EMPTY "/EMPTY" // Nombre del semáforo para indicar si el caldero está vacío
+#define SEM_FULL "/FULL" // Nombre del semáforo para indicar si el caldero está lleno
+#define SEM_MUTEX "/MUTEX" // (No usado aquí) Mutex para proteger acceso concurrente
 
-sem_t	*full;
-sem_t *empty;
-int *pot = NULL; // Puntero a la memoria compartida
-int shd;
+// Declaración de semáforos y memoria compartida
+sem_t *full; // Semáforo para indicar que el caldero está lleno
+sem_t *empty; // Semáforo para indicar que el caldero está vacío
+int *pot = NULL; // Puntero al caldero en memoria compartida
+int shd; // Descriptor de la memoria compartida
 
-int finish = 0;
+int finish = 0; // Bandera para terminar el proceso
 
+// Función para colocar raciones en el caldero
 void putServingsInPot(int servings)
 {
-	*pot = servings;
-	sem_post(full);
-	printf("[+]Cook (%d): Putting servings in the pot\n", getpid());
-		
-		
+    *pot = servings; // Se coloca la cantidad de raciones en el caldero
+    sem_post(full); // Se libera el semáforo "full" indicando que el caldero está lleno
+    printf("[+]Cook (%d): Putting servings in the pot\n", getpid());
 }
 
+// Función principal del cocinero
 void cook(void)
 {
-	while(!finish) {
-
-		//Esperamos a que el caldero este vacio
-		sem_wait(empty);
-		putServingsInPot(M);
-		sleep(2);
-	}
+    while (!finish) {
+        // Espera hasta que el caldero esté vacío
+        sem_wait(empty);
+        putServingsInPot(M); // Llena el caldero con M raciones
+        sleep(2); // Simula el tiempo que tarda en llenar el caldero
+    }
 }
 
+// Función para liberar recursos y limpiar
 void cleanup() {
-	munmap(pot, sizeof(int));
-	sem_close(full);
-	sem_close(empty);
-	sem_unlink(SEM_EMPTY);
-	sem_unlink(SEM_FULL);
-	// sem_unlink(SEM_MUTEX);
-	shm_unlink(SHM_NAME);
+    munmap(pot, sizeof(int)); // Desasigna la memoria compartida
+    sem_close(full); // Cierra el semáforo "full"
+    sem_close(empty); // Cierra el semáforo "empty"
+    sem_unlink(SEM_EMPTY); // Elimina el semáforo "empty"
+    sem_unlink(SEM_FULL); // Elimina el semáforo "full"
+    shm_unlink(SHM_NAME); // Elimina el segmento de memoria compartida
 }
 
-/* handler para liberacion de memoria cuando acaba el proceso*/
+// Manejador de señales (SIGINT y SIGTERM)
 void handler(int signo)
 {
-	if(signo == SIGTERM || signo == SIGINT) {
-	 	finish = 1;
-		cleanup();
-		printf("Cook (%d): Received signal, terminating\n", getpid());
-		exit(EXIT_SUCCESS);
-	}
+    if (signo == SIGTERM || signo == SIGINT) {
+        finish = 1; // Establece la bandera de terminación
+        cleanup(); // Limpia los recursos
+        printf("Cook (%d): Received signal, terminating\n", getpid());
+        exit(EXIT_SUCCESS); // Termina el proceso exitosamente
+    }
 }
 
 int main(int argc, char *argv[])
 {
-	signal(SIGTERM, handler);
-	signal(SIGINT, handler);
+    // Configura manejadores para señales SIGTERM y SIGINT
+    signal(SIGTERM, handler);
+    signal(SIGINT, handler);
 
-	// establecemos espacion de la memoria compartida
-	shd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
-	 ftruncate(shd, sizeof(int));
-	pot = (int*) mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, shd, 0);
+    // Establece y configura el segmento de memoria compartida
+    shd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666); // Crea o abre la memoria compartida
+    ftruncate(shd, sizeof(int)); // Establece el tamaño de la memoria compartida
+    pot = (int*) mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, shd, 0); // Mapea la memoria compartida
 
-	*pot = 0;
+    *pot = 0; // Inicializa el caldero como vacío (0 raciones)
 
-	empty = sem_open(SEM_EMPTY, O_CREAT, 0666, 0); // 1 porque al principio esta vacio el caldero
-	full = sem_open(SEM_FULL, O_CREAT, 0666, 0); // a 0 porque no hay servings en el pot
-	// sem_open(SEM_MUTEX, O_CREAT, 0666, 1);
+    // Inicializa los semáforos
+    empty = sem_open(SEM_EMPTY, O_CREAT, 0666, 0); // Inicialmente 0, ya que el caldero empieza vacío
+    full = sem_open(SEM_FULL, O_CREAT, 0666, 0); // Inicialmente 0, ya que no hay raciones en el caldero
 
-	printf("Cook %d: Sarted\n", getpid());
-	cook();
+    printf("Cook %d: Started\n", getpid());
+    cook(); // Inicia la función principal del cocinero
 
-	// cleanup
-	
-	return 0;
+    // Limpieza de recursos (nunca se alcanza debido al bucle infinito en `cook()`)
+    return 0;
 }
+

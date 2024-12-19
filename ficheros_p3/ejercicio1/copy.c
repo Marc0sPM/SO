@@ -6,7 +6,7 @@
 //libreria para permisos de sistema
 #include <sys/stat.h>
 
-const ssize_t BLOCK_SIZE = 512; // Tamaño de bloque intermedio para copia
+const size_t BLOCK_SIZE = 512; // Tamaño de bloque intermedio para copia
 
 void copy(int fdo, int fdd)
 {
@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
 	}
 
 	copy(fdo, fdd);
-
+	close(fdo);
+	close(fdd);
 	return 0;
 }
